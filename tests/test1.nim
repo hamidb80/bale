@@ -1,12 +1,13 @@
-# This is just an example to get you started. You may wish to put all of your
-# tests into a single file, or separate them into multiple `test1`, `test2`
-# etc. files (better names are recommended, just make sure the name starts with
-# the letter 't').
-#
-# To run these tests, simply execute `nimble test`.
-
-import unittest
-
+import std/[unittest, asyncdispatch, options, json]
 import bale
-test "can add":
-  check add(5, 5) == 10
+
+const token = staticRead "../bot.token"
+let
+  bot = newBaleBot token
+  updates = waitFor bot.getUpdates
+
+for u in updates.result:
+  if u.msg.isSome:
+    echo u.msg.get.JsonNode.pretty
+    echo u.msg.get.chat.typ
+    echo u.msg.get.frm.username

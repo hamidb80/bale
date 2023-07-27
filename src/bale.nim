@@ -48,14 +48,14 @@ type
     ucsKicked = "kicked"
 
 
-proc newBaleBot(token: string): BaleBot =
+proc newBaleBot*(token: string): BaleBot =
   BaleBot(
     apiRoot: parseUri "https://tapi.bale.ai/bot" & token,
     lastUpdateId: -1)
 
 func initQuery: seq[UriQuery] = @[]
 
-proc getUpdates(b: BaleBot, offset, limit = -1): Future[
+proc getUpdates*(b: BaleBot, offset, limit = -1): Future[
     GetUpdateResult] {.async.} =
   var q = initQuery()
   if offset != -1:
@@ -292,15 +292,3 @@ defFields ChatMember, {
   can_send_other_messages: bool,
   can_add_web_page_previews: bool}
 
-
-when isMainModule:
-  const token = staticRead "../bot.token"
-  let
-    bot = newBaleBot token
-    updates = waitFor bot.getUpdates
-
-  for u in updates.result:
-    if u.msg.isSome:
-      echo u.msg.get.date
-      echo u.msg.get.text
-      echo u.msg.get.JsonNode.pretty
