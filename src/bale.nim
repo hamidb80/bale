@@ -1,7 +1,7 @@
+import std/macros
 import std/[asyncdispatch, httpclient, uri]
 import std/[json, strformat, options, strutils]
 
-import std/macros, macroplus, caster
 
 type
   UriQuery = tuple[key: string, value: string]
@@ -71,8 +71,6 @@ proc getUpdates(b: BaleBot, offset, limit = -1): Future[
 # setWebhook
 # deleteWebhook
 
-# TODO export types + fields
-
 # ------------------
 
 func isNull*(j: JsonNode): bool =
@@ -107,6 +105,9 @@ func literalStr(n: NimNode): string =
   of nnkIdent: n.strVal
   of nnkAccQuoted: n[0].strVal
   else: invalid "errr ?"
+
+func exported(n: NimNode): NimNode =
+  postfix n, "*"
 
 macro defFields(jsonType, bodyFields): untyped =
   expectKind bodyFields, {nnkTableConstr, nnkCurly}
@@ -150,7 +151,7 @@ macro defFields(jsonType, bodyFields): untyped =
           `arg`.JsonNode[`kstr`].conv `type`
 
       result.add newProc(
-        key,
+        exported key,
         [`type`, newIdentDefs(arg, jsonType)],
         body,
         nnkFuncDef)
@@ -160,7 +161,7 @@ macro defFields(jsonType, bodyFields): untyped =
           `key`(`arg`)
 
         result.add newProc(
-          a,
+          exported a,
           [`type`, newIdentDefs(arg, jsonType)],
           b,
           nnkTemplateDef)
@@ -179,7 +180,7 @@ macro defFields(jsonType, bodyFields): untyped =
           `arg`.`castedType`.`f`
 
         result.add newProc(
-          f,
+          exported f,
           [a, newIdentDefs(arg, jsonType)],
           body,
           nnkFuncDef)
@@ -301,3 +302,5 @@ when isMainModule:
   for u in updates.result:
     if u.msg.isSome:
       echo u.msg.get.date
+      echo u.msg.get.text
+      echo u.msg.get.JsonNode.pretty
