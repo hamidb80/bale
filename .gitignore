@@ -1,0 +1,6 @@
+.vscode/
+temp/
+*.token
+
+play.*
+*.exe
