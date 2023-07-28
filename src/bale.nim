@@ -293,13 +293,7 @@ proc sendPhoto*(b: BaleBot,
     m.addFiles {"photo": photo}
   else:
     m.add("photo", photo)
-  echo m
-  # let m = %*{
-  #   "chat_id": chat_id,
-  #   "caption": caption,
-  #   "photo": photo}
   return assertOkSelf BaleMessageResult postc m
-
 
 # sendAudio
 # sendDocument

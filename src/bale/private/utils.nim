@@ -166,22 +166,11 @@ template getc*(queryParams): untyped {.dirty.} =
 template postc*(content: typed): untyped {.dirty.} =
   let c = newAsyncHttpClient()
   defer: c.close()
-  let
-    kind =
-      when content is JsonNode: "application/json"
-      else: "multipart/form-data"
-
-    h = newHttpHeaders {"content-type": kind}
-
-    res =
-      when content is MultipartData:
-        await c.request(apiUrl, HttpPost,
-          multipart = content,
-          headers = h)
-      else:
-        await c.request(apiUrl, HttpPost,
-          body = $content,
-          headers = h)
+  let res =         
+    when content is MultipartData:
+      await c.request(apiUrl, HttpPost, multipart = content)
+    else:
+      await c.request(apiUrl, HttpPost, body = $content)
 
   parseJson await res.body
 
