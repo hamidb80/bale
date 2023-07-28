@@ -1,4 +1,4 @@
-import std/[macros, json, options, strutils, httpcore]
+import std/[macros, json, options, strutils, httpcore, httpclient]
 import macroplus
 
 func isNull*(j: JsonNode): bool =
@@ -114,11 +114,6 @@ macro queryFields*(procDef): untyped =
   var
     body = procDef.body
     ps = procDef.params
-    paramsWithDefaults: seq[tuple[name, defaultName: string]]
-    q = ident "query"
-
-  body.insert 0, quote do:
-    var `q` = initQuery()
 
   for i in 1..<ps.len:
     let
@@ -132,19 +127,8 @@ macro queryFields*(procDef): untyped =
           dname = name & "Default"
           id = ident dname
 
-        paramsWithDefaults.add (name, dname)
         body.insert 0, quote do:
           let `id` {.global.} = `d`
-
-  for (p, d) in paramsWithDefaults:
-    let
-      pi = ident p
-      ps = newLit p
-      di = ident d
-
-    body.insert paramsWithDefaults.len+1, quote do:
-      if `pi` != `di`:
-        `q`.add (`ps`, $`di`)
 
   return procDef
   # debugEcho repr body
@@ -170,7 +154,7 @@ template apiUrl*: untyped {.dirty.} =
 # template checkHttpError(resp): untyped =
 #   if resp.code.is4xx or resp.code.is5xx:
 #     raise newException(HttpRequestError, resp.status)
-  
+
 # TODO think more about exceptions ...
 
 template getc*(queryParams): untyped {.dirty.} =
@@ -179,25 +163,62 @@ template getc*(queryParams): untyped {.dirty.} =
   let res = await c.request(apiUrl ? queryParams, HttpGet)
   parseJson await res.body
 
-template postc*(content): untyped {.dirty.} =
+template postc*(content: typed): untyped {.dirty.} =
   let c = newAsyncHttpClient()
   defer: c.close()
   let
     kind =
       when content is JsonNode: "application/json"
       else: "multipart/form-data"
-    res = await c.request(apiUrl, HttpPost,
-      body = $content,
-      headers = newHttpHeaders {"content-type": kind})
+
+    h = newHttpHeaders {"content-type": kind}
+
+    res =
+      when content is MultipartData:
+        await c.request(apiUrl, HttpPost,
+          multipart = content,
+          headers = h)
+      else:
+        await c.request(apiUrl, HttpPost,
+          body = $content,
+          headers = h)
 
   parseJson await res.body
 
 
 func curlyToTableConstr(n: NimNode): NimNode =
   expectKind n, nnkCurly
-  result = newNimNode nnkTableConstr
+  let acc = ident "acc"
+  result = newStmtList()
+  result.add quote do:
+    var `acc`: seq[(string, string)] = @[]
+
   for e in n:
-    result.add newColonExpr(e.strVal.newLit, newCall(ident"$", e))
+
+    case e.kind
+    of nnkPrefix:
+      let
+        (node, op) = unpackPrefix e
+        nodeDefault = ident node.strVal & "Default"
+        s = newLit node.strVal
+
+      assert op == "!"
+
+      result.add quote do:
+        if `node` != `nodeDefault`:
+          `acc`.add (`s`, $`node`)
+
+    of nnkIdent:
+      let s = newLit e.strVal
+
+      result.add quote do:
+        `acc`.add (`s`, $`e`)
+
+    else:
+      discard
+
+  result.add acc
+  result = newTree(nnkBlockStmt, newEmptyNode(), result)
 
 macro toQuery*(node): untyped =
   return curlyToTableConstr node

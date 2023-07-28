@@ -14,7 +14,7 @@ type
     lastUpdateId: int
 
   BaleError = ref object of CatchableError
-    # code: int - sometimes missing
+    code: int
     # msg: string (description) - inherits this field
 
   BaleResult* = distinct JsonNode
@@ -22,6 +22,7 @@ type
   BaleBoolResult* = distinct BaleResult
   GetUpdatesResult* = distinct BaleResult
   GetFileResult* = distinct BaleResult
+  BaleMessageResult* = distinct BaleResult
   GetChatAdministratorsResult* = distinct BaleResult
   GetChatResult* = distinct BaleResult
   GetUserResult* = distinct BaleResult
@@ -46,6 +47,8 @@ type
   ShippingQuery* = distinct JsonNode
   PreCheckoutQuery* = distinct JsonNode
   SuccessfulPayment* = distinct JsonNode
+
+  ReplyKeyboardMarkup* = distinct JsonNode
 
   ChatTypes* = enum
     ctPrivate = "private"
@@ -86,7 +89,7 @@ defFields Message, {
   (`from`, frm): User,
   date: int,
   chat: Chat,
-  text: string,
+  text: Option[string],
   forwarded_from: Option[User],
   forwarded_from_chat: Option[Chat],
   forwarded_from_message_id: Option[int],
@@ -160,7 +163,7 @@ defFields ChatMember, {
 
 
 defFields BaleResult, {
-  error_code: int,
+  error_code: Option[int],
   ok: bool,
   description: string}
 
@@ -172,6 +175,7 @@ template defResultType(ObjName, ResultType): untyped {.dirty.} =
 
 defResultType BaleBoolResult, bool
 defResultType BaleIntResult, int
+defResultType BaleMessageResult, Message
 defResultType GetUpdatesResult, Array[Update]
 defResultType GetFileResult, BFile
 defResultType GetChatAdministratorsResult, Array[ChatMember]
@@ -192,13 +196,13 @@ const noQuery = initQuery()
 
 template newBaleError(ecode, desc): untyped =
   let err = new BaleError
-  # err.code = ecode
+  err.code = ecode
   err.msg = desc
   err
 
 template assertOkRaw(res): untyped =
   if not res.ok:
-    raise newBaleError(res.error_code, res.description)
+    raise newBaleError(res.error_code.get 0, res.description)
 
 template assertOkTemp(resp): untyped =
   let r = resp
@@ -212,8 +216,33 @@ template assertOkSelf(resp): untyped =
 
 # -------------------------------
 
-# sendMessage
-# editMessageText
+proc sendMessage*(b: BaleBot,
+  chat_id: int,
+  text: string,
+  reply_markup: Option[ReplyKeyboardMarkup] = none ReplyKeyboardMarkup,
+  reply_to_message_id: int = -1,
+): Future[Message] {.addProcName, async.} =
+  var payload = %*{"chat_id": chat_id, "text": text}
+
+  # if reply_markup.isSome:
+  #   payload["reply_markup"] = %reply_markup.get
+
+  if reply_to_message_id != -1:
+    payload["reply_to_message_id"] = %reply_to_message_id
+
+  return assertOkSelf BaleMessageResult postc payload
+
+proc editMessageText*(b: BaleBot,
+  chat_id, message_id: int,
+  text: string,
+  reply_markup: Option[ReplyKeyboardMarkup] = none ReplyKeyboardMarkup,
+): Future[Message] {.addProcName, async.} =
+  var payload = %*{"chat_id": chat_id, "message_id": message_id, "text": text}
+
+  # if reply_markup.isSome:
+  #   payload["reply_markup"] = %reply_markup.get
+
+  return assertOkSelf BaleMessageResult postc payload
 
 proc deleteMessage*(b: BaleBot, chat_id, message_id: int) {.addProcName, async.} =
   assertOkTemp BaleBoolResult getc toQuery {chat_id, message_id}
@@ -226,7 +255,7 @@ proc deleteWebhook*(b: BaleBot) {.addProcName, async.} =
 
 proc getUpdates*(b: BaleBot, offset, limit: int = -1):
   Future[seq[Update]] {.addProcName, queryFields, async.} =
-  return assertOkSelf GetUpdatesResult getc query
+  return assertOkSelf GetUpdatesResult getc toQuery {!offset, !limit}
 
 proc getFile*(b: BaleBot, fileId: string):
   Future[BFile] {.addProcName, async.} =
@@ -251,7 +280,27 @@ proc getChatMember*(b: BaleBot, chat_id, user_id: int):
   Future[ChatMember] {.addProcName, async.} =
   return assertOkSelf GetChatMemberResult getc toQuery {chat_id, user_id}
 
-# sendPhoto
+
+proc sendPhoto*(b: BaleBot,
+  chat_id: int,
+  caption: string,
+  photo: string,
+  from_file: bool,
+  reply_to_message_id: int = -1
+): Future[Message] {.addProcName, queryFields, async.} =
+  var m = newMultipartData toQuery {chat_id, caption, !reply_to_message_id}
+  if from_file:
+    m.addFiles {"photo": photo}
+  else:
+    m.add("photo", photo)
+  echo m
+  # let m = %*{
+  #   "chat_id": chat_id,
+  #   "caption": caption,
+  #   "photo": photo}
+  return assertOkSelf BaleMessageResult postc m
+
+
 # sendAudio
 # sendDocument
 # sendVideo
