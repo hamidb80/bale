@@ -28,27 +28,28 @@ type
   GetUserResult* = distinct BaleResult
   GetChatMemberResult* = distinct BaleResult
 
-  Update* = distinct JsonNode
-  User* = distinct JsonNode
-  MessageEntity* = distinct JsonNode
-  BFile* = distinct JsonNode
-  Chat* = distinct JsonNode
-  Invoice* = distinct JsonNode
-  ChatMember* = distinct JsonNode
-  Audio* = distinct JsonNode
-  Document* = distinct JsonNode
-  PhotoSize* = distinct JsonNode
-  Video* = distinct JsonNode
-  Voice* = distinct JsonNode
-  Contact* = distinct JsonNode
-  Location* = distinct JsonNode
-  Message* = distinct JsonNode
-  CallbackQuery* = distinct JsonNode
-  ShippingQuery* = distinct JsonNode
-  PreCheckoutQuery* = distinct JsonNode
-  SuccessfulPayment* = distinct JsonNode
-
-  ReplyKeyboardMarkup* = distinct JsonNode
+  BaleObject* = distinct JsonNode
+  Update* = distinct BaleObject
+  User* = distinct BaleObject
+  MessageEntity* = distinct BaleObject
+  BFile* = distinct BaleObject
+  Chat* = distinct BaleObject
+  Invoice* = distinct BaleObject
+  ChatMember* = distinct BaleObject
+  Audio* = distinct BaleObject
+  Document* = distinct BaleObject
+  PhotoSize* = distinct BaleObject
+  Video* = distinct BaleObject
+  Voice* = distinct BaleObject
+  Contact* = distinct BaleObject
+  Location* = distinct BaleObject
+  Message* = distinct BaleObject
+  CallbackQuery* = distinct BaleObject
+  ShippingQuery* = distinct BaleObject
+  PreCheckoutQuery* = distinct BaleObject
+  SuccessfulPayment* = distinct BaleObject
+  
+  ReplyKeyboardMarkup* = distinct BaleObject
 
   ChatTypes* = enum
     ctPrivate = "private"
@@ -162,16 +163,12 @@ defFields ChatMember, {
   can_add_web_page_previews: bool}
 
 
-defFields BaleResult, {
-  error_code: Option[int],
-  ok: bool,
-  description: string}
-
 template defResultType(ObjName, ResultType): untyped {.dirty.} =
   defFields ObjName, {
     (result, res): ResultType,
-    ...BaleResult{ok, error_code, description}}
-
+    error_code: Option[int],
+    ok: bool,
+    description: string}
 
 defResultType BaleBoolResult, bool
 defResultType BaleIntResult, int
@@ -255,7 +252,7 @@ proc deleteWebhook*(b: BaleBot) {.addProcName, async.} =
 
 proc getUpdates*(b: BaleBot, offset, limit: int = -1):
   Future[seq[Update]] {.addProcName, queryFields, async.} =
-  return assertOkSelf GetUpdatesResult getc toQuery {!offset, !limit}
+  return assertOkSelf GetUpdatesResult getc toQuery {?offset, ?limit}
 
 proc getFile*(b: BaleBot, fileId: string):
   Future[BFile] {.addProcName, async.} =
@@ -280,24 +277,105 @@ proc getChatMember*(b: BaleBot, chat_id, user_id: int):
   Future[ChatMember] {.addProcName, async.} =
   return assertOkSelf GetChatMemberResult getc toQuery {chat_id, user_id}
 
-
 proc sendPhoto*(b: BaleBot,
   chat_id: int,
   caption: string,
-  photo: string,
-  from_file: bool,
+  file: string,
+  is_binary: bool,
   reply_to_message_id: int = -1
 ): Future[Message] {.addProcName, queryFields, async.} =
-  var m = newMultipartData toQuery {chat_id, caption, !reply_to_message_id}
-  if from_file:
-    m.addFiles {"photo": photo}
-  else:
-    m.add("photo", photo)
+  var m = newMultipartData toQuery {chat_id, caption, ?reply_to_message_id}
+  m.addCustomFile "photo", file, is_binary
   return assertOkSelf BaleMessageResult postc m
 
-# sendAudio
-# sendDocument
-# sendVideo
-# sendVoice
-# sendLocation
-# sendInvoice
+proc sendAudio*(b: BaleBot,
+  chat_id: int,
+  caption: string,
+  file: string,
+  is_binary: bool,
+  duration: int = -1,
+  title: string = "",
+  reply_to_message_id: int = -1
+): Future[Message] {.addProcName, queryFields, async.} =
+  var m = newMultipartData toQuery {chat_id, caption,
+    ?duration, ?title, ?reply_to_message_id}
+  m.addCustomFile "audio", file, is_binary
+  return assertOkSelf BaleMessageResult postc m
+
+proc sendDocument*(b: BaleBot,
+  chat_id: int,
+  caption: string,
+  file: string,
+  is_binary: bool,
+  reply_to_message_id: int = -1
+): Future[Message] {.addProcName, queryFields, async.} =
+  var m = newMultipartData toQuery {chat_id, caption, ?reply_to_message_id}
+  m.addCustomFile "document", file, is_binary
+  return assertOkSelf BaleMessageResult postc m
+
+proc sendVideo*(b: BaleBot,
+  chat_id: int,
+  caption: string,
+  file: string,
+  is_binary: bool,
+  duration: int = -1,
+  width: int = -1,
+  height: int = -1,
+  reply_to_message_id: int = -1
+): Future[Message] {.addProcName, queryFields, async.} =
+  var m = newMultipartData toQuery {chat_id, caption,
+    ?duration, ?width, ?height, ?reply_to_message_id}
+  m.addCustomFile "video", file, is_binary
+  return assertOkSelf BaleMessageResult postc m
+
+proc sendVoice*(b: BaleBot,
+  chat_id: int,
+  caption: string,
+  file: string,
+  is_binary: bool,
+  duration: int = -1,
+  reply_to_message_id: int = -1
+): Future[Message] {.addProcName, queryFields, async.} =
+  var m = newMultipartData toQuery {chat_id, caption,
+    ?duration, ?reply_to_message_id}
+  m.addCustomFile "voice", file, is_binary
+  return assertOkSelf BaleMessageResult postc m
+
+proc sendLocation*(b: BaleBot,
+  chat_id: int,
+  latitude, longitude: float,
+  reply_to_message_id: int = -1
+): Future[Message] {.addProcName, queryFields, async.} =
+  return assertOkSelf BaleMessageResult postc newMultipartData toQuery {
+      chat_id, latitude, longitude, ?reply_to_message_id}
+
+proc sendContact*(b: BaleBot,
+  chat_id: int,
+  phone_number: string,
+  first_name: string,
+  last_name: string = "",
+  reply_to_message_id: int = -1
+): Future[Message] {.addProcName, queryFields, async.} =
+  return assertOkSelf BaleMessageResult postc newMultipartData toQuery {
+    chat_id, phone_number, first_name, ?last_name, ?reply_to_message_id}
+
+# proc sendInvoice*(b: BaleBot,
+#   chat_id: int,
+#   title, description, provider_token, start_parameter, currency: string,
+#   prices: seq[],
+#   payload, provider_data: string =  "",
+#   provider_data, photo_url: string = "",
+#   photo_size: int,
+#   photo_width: int,
+#   photo_height: int,
+#   need_name: bool,
+#   need_phone_number: bool,
+#   need_email: bool,
+#   need_shipping_address: bool,
+#   is_flexible: bool,
+#   disable_notification: bool,
+#   reply_markup: ReplyKeyboardMarkup,
+#   reply_to_message_id: int = -1
+# ): Future[Message] {.addProcName, queryFields, async.} =
+#   return assertOkSelf BaleMessageResult postc newMultipartData toQuery {
+#     chat_id, phone_number, first_name, ?last_name, ?reply_to_message_id}

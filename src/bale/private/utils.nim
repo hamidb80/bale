@@ -88,24 +88,6 @@ macro defFields*(jsonType, bodyFields): untyped =
           b,
           nnkTemplateDef)
 
-    of nnkPrefix:
-      expectIdent e[0], "..."
-      expectKind e[1], nnkCurlyExpr
-      let
-        castedType = e[1][0]
-        fields = e[1][1..^1]
-        a = ident"auto"
-        arg = ident"arg"
-
-      for f in fields:
-        let body = quote:
-          `arg`.`castedType`.`f`
-
-        result.add newProc(
-          exported f,
-          [a, newIdentDefs(arg, jsonType)],
-          body,
-          nnkFuncDef)
     else: invalid "invalid field: " & $e.kind
 
   # debugEcho repr result
@@ -183,7 +165,6 @@ func curlyToTableConstr(n: NimNode): NimNode =
     var `acc`: seq[(string, string)] = @[]
 
   for e in n:
-
     case e.kind
     of nnkPrefix:
       let
@@ -191,7 +172,7 @@ func curlyToTableConstr(n: NimNode): NimNode =
         nodeDefault = ident node.strVal & "Default"
         s = newLit node.strVal
 
-      assert op == "!"
+      assert op == "?"
 
       result.add quote do:
         if `node` != `nodeDefault`:
@@ -211,3 +192,10 @@ func curlyToTableConstr(n: NimNode): NimNode =
 
 macro toQuery*(node): untyped =
   return curlyToTableConstr node
+
+
+proc addCustomFile*(m: var MultiPartData, field, file: string, isBinary: bool) =
+  if isBinary:
+    m.addFiles {field: file}
+  else:
+    m.add field, file
