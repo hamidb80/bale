@@ -62,11 +62,7 @@ macro defFields*(jsonType, bodyFields): untyped =
               valueType = t[1]
 
             case wrapper
-            of "Array":
-              quote:
-                seq[`valueType`]
-
-            of "Option": t
+            of "Array", "Option": t
             of "Enum": valueType
             else: invalid "invalid Wrapper: " & $key
           else: invalid "invalid kind: " & $key
@@ -74,7 +70,7 @@ macro defFields*(jsonType, bodyFields): untyped =
         kstr = newLit literalStrVal key
         arg = ident "arg"
         body = quote:
-          `arg`.JsonNode[`kstr`].conv `type`
+          `arg`.JsonNode{`kstr`}.conv `type`
 
       result.add newProc(
         exported key,

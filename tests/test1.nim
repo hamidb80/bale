@@ -11,9 +11,10 @@ for u in updates:
     echo u.msg.get.JsonNode.pretty
     echo u.msg.get.chat.typ
     echo u.msg.get.frm.username
-    waitFor bot.deletemessage(u.msg.get.chat.id, u.msg.get.id)
+    # waitFor bot.deletemessage(u.msg.get.chat.id, u.msg.get.id)
 
 # echo "-------------------"
 
-# let me = bot.getMe.waitFor
-# echo me.JsonNode.pretty
+let me = bot.getMe.waitFor
+echo me.JsonNode.pretty
+echo me.language_code

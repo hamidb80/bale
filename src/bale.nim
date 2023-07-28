@@ -1,9 +1,13 @@
+## https://dev.bale.ai/api
+
 import std/[asyncdispatch, httpclient, uri]
 import std/[json, options, strutils]
 import bale/private/utils
 
 type
   UriQuery = tuple[key: string, value: string]
+
+  Array[T] = seq[T]
 
   BaleBot = object
     apiRoot: Uri
@@ -63,8 +67,8 @@ defFields Update, {
   (update_id, id): int,
   (message, msg): Option[Message],
   (edited_message, edited_msg): Option[Message],
-  (channel_post, chp): Option[Message],
-  (edited_channel_post, edchp): Option[Message],
+  (channel_post, channp): Option[Message],
+  (edited_channel_post, edited_channp): Option[Message],
   (callback_query, cbq): Option[CallbackQuery],
   (shipping_query, shq): Option[ShippingQuery],
   (pre_checkout_query, pckq): Option[PreCheckoutQuery]}
@@ -74,7 +78,7 @@ defFields User, {
   username: string,
   first_name: string,
   last_name: string,
-  language_code: string,
+  language_code: Option[string],
   is_bot: bool}
 
 defFields Message, {
@@ -82,40 +86,40 @@ defFields Message, {
   (`from`, frm): User,
   date: int,
   chat: Chat,
-  forwarded_from: User,
-  forwarded_from_chat: Chat,
-  forwarded_from_message_id: int,
-  forwarded_date: int,
-  reply_to: Message,
-  edit_date: int,
   text: string,
-  entities: Array[MessageEntity],
-  caption_entities: Array[MessageEntity],
-  audio: Audio,
-  document: Document,
-  photo: Array[PhotoSize],
-  video: Video,
-  voice: Voice,
-  caption: string,
-  contact: Contact,
-  location: Location,
-  new_chat_members: Array[User],
-  left_chat_memeber: User,
-  new_chat_title: string,
-  new_chat_photo: Array[PhotoSize],
-  delete_chat_photo: bool,
-  group_chat_created: bool,
-  supergroup_chat_created: bool,
-  channel_chat_created: bool,
-  pinned_message: Message,
-  invoice: Invoice,
-  successful_payment: SuccessfulPayment,
-  edited_message: Message,
-  channel_post: Message,
-  edited_channel_post: Message,
-  callback_query: CallbackQuery,
-  shipping_query: ShippingQuery,
-  pre_checkout_query: PreCheckoutQuery}
+  forwarded_from: Option[User],
+  forwarded_from_chat: Option[Chat],
+  forwarded_from_message_id: Option[int],
+  forwarded_date: Option[int],
+  reply_to: Option[Message],
+  edit_date: Option[int],
+  entities: Option[Array[MessageEntity]],
+  caption_entities: Option[Array[MessageEntity]],
+  audio: Option[Audio],
+  document: Option[Document],
+  photo: Option[Array[PhotoSize]],
+  video: Option[Video],
+  voice: Option[Voice],
+  caption: Option[string],
+  contact: Option[Contact],
+  location: Option[Location],
+  new_chat_members: Option[Array[User]],
+  left_chat_memeber: Option[User],
+  new_chat_title: Option[string],
+  new_chat_photo: Option[Array[PhotoSize]],
+  delete_chat_photo: Option[bool],
+  group_chat_created: Option[bool],
+  supergroup_chat_created: Option[bool],
+  channel_chat_created: Option[bool],
+  pinned_message: Option[Message],
+  invoice: Option[Invoice],
+  successful_payment: Option[SuccessfulPayment],
+  edited_message: Option[Message],
+  channel_post: Option[Message],
+  edited_channel_post: Option[Message],
+  callback_query: Option[CallbackQuery],
+  shipping_query: Option[ShippingQuery],
+  pre_checkout_query: Option[PreCheckoutQuery]}
 
 defFields BFile, {
   (file_id, id): string,
@@ -208,6 +212,9 @@ template assertOkSelf(resp): untyped =
 
 # -------------------------------
 
+# sendMessage
+# editMessageText
+
 proc deleteMessage*(b: BaleBot, chat_id, message_id: int) {.addProcName, async.} =
   assertOkTemp BaleBoolResult getc toQuery {chat_id, message_id}
 
@@ -243,3 +250,11 @@ proc getChatMembersCount*(b: BaleBot, chat_id: int):
 proc getChatMember*(b: BaleBot, chat_id, user_id: int):
   Future[ChatMember] {.addProcName, async.} =
   return assertOkSelf GetChatMemberResult getc toQuery {chat_id, user_id}
+
+# sendPhoto
+# sendAudio
+# sendDocument
+# sendVideo
+# sendVoice
+# sendLocation
+# sendInvoice
