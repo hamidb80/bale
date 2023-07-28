@@ -18,14 +18,16 @@ for u in updates:
     let m = waitFor bot.sendPhoto(
       u.msg.get.chat.id,
       "dsa",
-      "https://5.imimg.com/data5/OF/GC/MY-4584302/red-rose-flower-500x500.jpg",
-      false,
+      # "https://5.imimg.com/data5/OF/GC/MY-4584302/red-rose-flower-500x500.jpg",
+      "play.png",
+      true,
       )
 
-    # let m = waitFor bot.sendMessage(
-    #   u.msg.get.chat.id, "wow")
+    let m2 = waitFor bot.sendMessage(
+      u.msg.get.chat.id, "wow")
 
-    # let e = waitFor bot.editMessageText(
-    #   u.msg.get.chat.id, m.id ,"wow2")
+    let e = waitFor bot.editMessageText(
+      u.msg.get.chat.id, m2.id ,"wow2")
 
-    # echo e.JsonNode.pretty
+    echo e.JsonNode.pretty
+    break
