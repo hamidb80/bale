@@ -1,6 +1,7 @@
 import std/[macros, json, options, strutils, httpcore, httpclient]
 import macroplus
 
+
 func isNull*(j: JsonNode): bool =
   j != nil or j.kind == JNull
 
@@ -154,10 +155,11 @@ template postc*(content: typed): untyped {.dirty.} =
     else:
       await c.request(apiUrl, HttpPost, body = $content)
 
+  echo $content
   parseJson await res.body
 
 
-func curlyToTableConstr(n: NimNode): NimNode =
+macro toQuery*(n): untyped =
   expectKind n, nnkCurly
   let acc = ident "acc"
   result = newStmtList()
@@ -190,9 +192,38 @@ func curlyToTableConstr(n: NimNode): NimNode =
   result.add acc
   result = newTree(nnkBlockStmt, newEmptyNode(), result)
 
-macro toQuery*(node): untyped =
-  return curlyToTableConstr node
+macro toJson*(n): untyped = 
+  expectKind n, nnkCurly
+  let acc = ident "acc"
+  result = newStmtList()
+  result.add quote do:
+    var `acc` = newJObject()
 
+  for e in n:
+    case e.kind
+    of nnkPrefix:
+      let
+        (node, op) = unpackPrefix e
+        nodeDefault = ident node.strVal & "Default"
+        s = newLit node.strVal
+
+      assert op == "?"
+
+      result.add quote do:
+        if `node` != `nodeDefault`:
+          `acc`[`s`] = %*`node`
+
+    of nnkIdent:
+      let s = newLit e.strVal
+
+      result.add quote do:
+        `acc`[`s`] = %*`e`
+
+    else: discard # XXX
+
+  result.add acc
+  result = newTree(nnkBlockStmt, newEmptyNode(), result)
+  
 
 proc addCustomFile*(m: var MultiPartData, field, file: string, isBinary: bool) =
   if isBinary:

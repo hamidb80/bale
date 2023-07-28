@@ -1,5 +1,5 @@
 ## Bale Bot API v1.0
-## https://dev.bale.ai/api 
+## https://dev.bale.ai/api
 
 import std/[asyncdispatch, httpclient, uri]
 import std/[json, options, strutils]
@@ -50,7 +50,7 @@ type
   ShippingQuery* = distinct BaleObject
   PreCheckoutQuery* = distinct BaleObject
   SuccessfulPayment* = distinct BaleObject
-  
+
   ReplyKeyboardMarkup* = distinct BaleObject
 
   ChatTypes* = enum
@@ -220,27 +220,24 @@ proc sendMessage*(b: BaleBot,
   reply_markup: Option[ReplyKeyboardMarkup] = none ReplyKeyboardMarkup,
   reply_to_message_id: int = -1,
   ): Future[Message] {.addProcName, async.} =
-  var payload = %*{"chat_id": chat_id, "text": text}
 
   # if reply_markup.isSome:
   #   payload["reply_markup"] = %reply_markup.get
 
-  if reply_to_message_id != -1:
-    payload["reply_to_message_id"] = %reply_to_message_id
+  # if reply_to_message_id != -1:
+  #   payload["reply_to_message_id"] = %reply_to_message_id
 
-  return assertOkSelf BaleMessageResult postc payload
+  return assertOkSelf BaleMessageResult postc toJson {chat_id, text}
 
 proc editMessageText*(b: BaleBot,
   chat_id, message_id: int,
   text: string,
   reply_markup: Option[ReplyKeyboardMarkup] = none ReplyKeyboardMarkup,
   ): Future[Message] {.addProcName, async.} =
-  var payload = %*{"chat_id": chat_id, "message_id": message_id, "text": text}
-
   # if reply_markup.isSome:
   #   payload["reply_markup"] = %reply_markup.get
 
-  return assertOkSelf BaleMessageResult postc payload
+  return assertOkSelf BaleMessageResult postc toJson {chat_id, message_id, text}
 
 proc deleteMessage*(b: BaleBot, chat_id, message_id: int) {.addProcName, async.} =
   assertOkTemp BaleBoolResult getc toQuery {chat_id, message_id}
@@ -331,10 +328,11 @@ proc sendVoice*(b: BaleBot,
 proc sendLocation*(b: BaleBot,
   chat_id: int,
   latitude, longitude: float,
+  caption: string = "",
   reply_to_message_id: int = -1
   ): Future[Message] {.addProcName, queryFields, async.} =
-  return assertOkSelf BaleMessageResult postc newMultipartData toQuery {
-      chat_id, latitude, longitude, ?reply_to_message_id}
+  return assertOkSelf BaleMessageResult postc toJson {
+      chat_id, latitude, longitude, caption, ?reply_to_message_id}
 
 proc sendContact*(b: BaleBot,
   chat_id: int,
@@ -343,7 +341,7 @@ proc sendContact*(b: BaleBot,
   last_name: string = "",
   reply_to_message_id: int = -1
   ): Future[Message] {.addProcName, queryFields, async.} =
-  return assertOkSelf BaleMessageResult postc newMultipartData toQuery {
+  return assertOkSelf BaleMessageResult postc toJson {
     chat_id, phone_number, first_name, ?last_name, ?reply_to_message_id}
 
 proc getFile*(b: BaleBot, fileId: string):
@@ -351,6 +349,7 @@ proc getFile*(b: BaleBot, fileId: string):
   return assertOkSelf GetFileResult getc toQuery {file_id}
 
 # ------ chat -----------------------------------
+
 proc getChat*(b: BaleBot, chat_id: int):
   Future[Chat] {.addProcName, async.} =
   return assertOkSelf GetChatResult getc toQuery {chat_id}
