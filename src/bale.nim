@@ -55,20 +55,20 @@ type
   SuccessfulPayment* = distinct BaleObject
 
   ReplyKeyboardMarkup* = object
-    keyboard: Option[seq[seq[KeyboardButton]]]
-    inline_keyboard: Option[seq[seq[InlineKeyboardButton]]]
-    resize_keyboard: bool
-    one_time_keyboard: bool
-    selective: bool
+    keyboard*: Option[seq[seq[KeyboardButton]]]
+    inline_keyboard*: Option[seq[seq[InlineKeyboardButton]]]
+    resize_keyboard*: bool
+    one_time_keyboard*: bool
+    selective*: bool
 
   KeyboardButton* = object
-    text: string
-    request_contact: bool
-    request_location: bool
+    text*: string
+    request_contact*: bool
+    request_location*: bool
 
   InlineKeyboardButton* = object
-    text: string
-    callback_data: string
+    text*: string
+    callback_data*: string
 
 
   ChatTypes* = enum
@@ -346,24 +346,16 @@ proc sendMessage*(b: BaleBot,
   reply_to_message_id: int = -1,
   ): Future[Message] {.addProcName, queryFields, async.} =
 
-  # if reply_markup.isSome:
-  #   payload["reply_markup"] = %reply_markup.get
-
-  # if reply_to_message_id != -1:
-  #   payload["reply_to_message_id"] = %reply_to_message_id
-
   return assertOkSelf BaleMessageResult postc toJson {chat_id, text,
-      ?reply_to_message_id}
+      ?reply_markup, ?reply_to_message_id}
 
 proc editMessageText*(b: BaleBot,
   chat_id, message_id: int,
   text: string,
   reply_markup: Option[ReplyKeyboardMarkup] = none ReplyKeyboardMarkup,
-  ): Future[Message] {.addProcName, async.} =
-  # if reply_markup.isSome:
-  #   payload["reply_markup"] = %reply_markup.get
-
-  return assertOkSelf BaleMessageResult postc toJson {chat_id, message_id, text}
+  ): Future[Message] {.addProcName, queryFields, async.} =
+  return assertOkSelf BaleMessageResult postc toJson {chat_id, message_id, text,
+    ?reply_markup}
 
 proc deleteMessage*(b: BaleBot, chat_id, message_id: int) {.addProcName, async.} =
   assertOkTemp BaleBoolResult getc toQuery {chat_id, message_id}

@@ -221,13 +221,13 @@ macro toJson*(n): untyped =
 
       result.add quote do:
         if `node` != `nodeDefault`:
-          `acc`[`s`] = %*`node`
+          `acc`[`s`] = %`node`
 
     of nnkIdent:
       let s = newLit e.strVal
 
       result.add quote do:
-        `acc`[`s`] = %*`e`
+        `acc`[`s`] = %`e`
 
     else: discard # XXX
 
