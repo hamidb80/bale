@@ -3,7 +3,10 @@
 ## Features
 + ***fast***: no mapping or intermidiate representation, just stores `JsonNode`s as `distinct` ones.
 + ***safe***: compile time checks & Auto-completes!! 
-+ ***extensible***: the docs updated or I missed some APIs/fields? No problem! just add your own function becuase it's all `JsonNode`s and functions! it's just one file man.
++ ***extensible***: the docs updated or I missed some APIs/fields? No problem! just add your own function becuase it's all `JsonNode`s and functions!
 
 ## How to Use
-see `./tests/test1.nim` at the moments
+see `tests/test1.nim` at the moments
+
+## Docs
+Docs? Really? Just take a look at `src/bale.nim`! It's just one man!
