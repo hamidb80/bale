@@ -240,3 +240,8 @@ proc addCustomFile*(m: var MultiPartData, field, file: string, isBinary: bool) =
     m.addFiles {field: file}
   else:
     m.add field, file
+
+template multipartFile*(q, field, path, isBinary): untyped = 
+  var m = newMultipartData toQuery q
+  m.addCustomFile field, path, is_binary
+  m

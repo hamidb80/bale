@@ -378,9 +378,8 @@ proc sendPhoto*(b: BaleBot,
   is_binary: bool,
   reply_to_message_id: int = -1
   ): Future[Message] {.addProcName, queryFields, async.} =
-  var m = newMultipartData toQuery {chat_id, caption, ?reply_to_message_id}
-  m.addCustomFile "photo", file, is_binary
-  return assertOkSelf BaleMessageResult postc m
+  return assertOkSelf BaleMessageResult postc multipartFile({chat_id, caption,
+      ?reply_to_message_id}, "photo", file, is_binary)
 
 proc sendAudio*(b: BaleBot,
   chat_id: int,
@@ -391,10 +390,8 @@ proc sendAudio*(b: BaleBot,
   title: string = "",
   reply_to_message_id: int = -1
   ): Future[Message] {.addProcName, queryFields, async.} =
-  var m = newMultipartData toQuery {chat_id, caption,
-    ?duration, ?title, ?reply_to_message_id}
-  m.addCustomFile "audio", file, is_binary
-  return assertOkSelf BaleMessageResult postc m
+  return assertOkSelf BaleMessageResult postc multipartFile({chat_id, caption,
+    ?duration, ?title, ?reply_to_message_id}, "audio", file, is_binary)
 
 proc sendDocument*(b: BaleBot,
   chat_id: int,
@@ -403,9 +400,8 @@ proc sendDocument*(b: BaleBot,
   is_binary: bool,
   reply_to_message_id: int = -1
   ): Future[Message] {.addProcName, queryFields, async.} =
-  var m = newMultipartData toQuery {chat_id, caption, ?reply_to_message_id}
-  m.addCustomFile "document", file, is_binary
-  return assertOkSelf BaleMessageResult postc m
+  return assertOkSelf BaleMessageResult postc multipartFile({
+    chat_id, caption, ?reply_to_message_id}, "document", file, is_binary)
 
 proc sendVideo*(b: BaleBot,
   chat_id: int,
@@ -417,10 +413,8 @@ proc sendVideo*(b: BaleBot,
   height: int = -1,
   reply_to_message_id: int = -1
   ): Future[Message] {.addProcName, queryFields, async.} =
-  var m = newMultipartData toQuery {chat_id, caption,
-    ?duration, ?width, ?height, ?reply_to_message_id}
-  m.addCustomFile "video", file, is_binary
-  return assertOkSelf BaleMessageResult postc m
+  return assertOkSelf BaleMessageResult postc multipartFile({chat_id, caption,
+    ?duration, ?width, ?height, ?reply_to_message_id}, "video", file, is_binary)
 
 proc sendVoice*(b: BaleBot,
   chat_id: int,
@@ -430,10 +424,8 @@ proc sendVoice*(b: BaleBot,
   duration: int = -1,
   reply_to_message_id: int = -1
   ): Future[Message] {.addProcName, queryFields, async.} =
-  var m = newMultipartData toQuery {chat_id, caption,
-    ?duration, ?reply_to_message_id}
-  m.addCustomFile "voice", file, is_binary
-  return assertOkSelf BaleMessageResult postc m
+  return assertOkSelf BaleMessageResult postc multipartFile({chat_id, caption,
+    ?duration, ?reply_to_message_id}, "voice", file, is_binary)
 
 proc sendLocation*(b: BaleBot,
   chat_id: int,
