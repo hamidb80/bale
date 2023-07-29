@@ -2,7 +2,7 @@
 
 version       = "0.0.1"
 author        = "hamidb80"
-description   = "Bale.ai bot API"
+description   = "Bale.ai Bot API client"
 license       = "MIT"
 srcDir        = "src"
 

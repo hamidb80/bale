@@ -1,5 +1,6 @@
 ## Bale Bot API v1.0
 ## https://dev.bale.ai/api
+## https://dev.bale.ai/faq
 
 import std/[asyncdispatch, httpclient, uri]
 import std/[json, options, strutils]
@@ -53,7 +54,22 @@ type
   PreCheckoutQuery* = distinct BaleObject
   SuccessfulPayment* = distinct BaleObject
 
-  ReplyKeyboardMarkup* = distinct BaleObject
+  ReplyKeyboardMarkup* = object
+    keyboard: Option[seq[seq[KeyboardButton]]]
+    inline_keyboard: Option[seq[seq[InlineKeyboardButton]]]
+    resize_keyboard: bool
+    one_time_keyboard: bool
+    selective: bool
+
+  KeyboardButton* = object
+    text: string
+    request_contact: bool
+    request_location: bool
+
+  InlineKeyboardButton* = object
+    text: string
+    callback_data: string
+
 
   ChatTypes* = enum
     ctPrivate = "private"
