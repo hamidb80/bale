@@ -9,17 +9,20 @@ let
 
 for u in updates:
   if u.msg.isSome:
-    let chid = u.msg.get.chat.id
+    let
+      msg =  u.msg.get
+      chid = msg.chat.id
 
-    echo u.msg.get.JsonNode.pretty
-    echo u.msg.get.chat.typ
-    echo u.msg.get.frm.username
+    echo msg.JsonNode.pretty
+    echo msg.chat.typ
+    echo msg.frm.username
 
-    waitFor bot.deletemessage(chid, u.msg.get.id)
     let 
-      m = waitFor bot.sendPhoto(chid, "cap", "play.png", true)
-      m2 = waitFor bot.sendMessage(chid, "wow")
-      e = waitFor bot.editMessageText(chid, m2.id, "wow2")
+      ph = waitFor bot.sendPhoto(chid, "cap", "play.png", true)
+      m = waitFor bot.sendMessage(chid, "wow", reply_to_message_id = ph.id)
+      e = waitFor bot.editMessageText(chid, m.id, "wow edited")
       c = waitFor bot.sendContact(chid, "09140026206", "Iran Nim")
-      l = waitFor bot.sendLocation(chid, 0.0, 10.1)
+      # XXX l = waitFor bot.sendLocation(chid, 0.0, 10.1) 
+
+    waitFor bot.deletemessage(chid, c.id)
     break

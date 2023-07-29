@@ -48,6 +48,8 @@ type
   Message* = distinct BaleObject
   CallbackQuery* = distinct BaleObject
   ShippingQuery* = distinct BaleObject
+  OrderInfo* = distinct BaleObject
+  ShippingAddress* = distinct BaleObject
   PreCheckoutQuery* = distinct BaleObject
   SuccessfulPayment* = distinct BaleObject
 
@@ -66,6 +68,19 @@ type
     ucsRestricted = "restricted"
     ucsLeft = "left"
     ucsKicked = "kicked"
+
+  MessageEntityKind = enum
+    mekMention = "mention"
+    mekHashtag = "hashtag"
+    mekBotCommand = "bot_command"
+    mekUrl = "url"
+    mekEmail = "email"
+    mekBold = "bold"
+    mekItalic = "italic"
+    mekCode = "code"
+    mekPre = "pre"
+    mekTextLink = "text_link"
+    mekTextMention = "text_mention"
 
 
 defFields Update, {
@@ -126,11 +141,6 @@ defFields Message, {
   shipping_query: Option[ShippingQuery],
   pre_checkout_query: Option[PreCheckoutQuery]}
 
-defFields BFile, {
-  (file_id, id): string,
-  (file_size, size): int,
-  (file_path, path): string}
-
 defFields Chat, {
   id: int,
   (`type`, typ): Enum[ChatTypes],
@@ -162,6 +172,105 @@ defFields ChatMember, {
   can_send_media_messages: bool,
   can_send_other_messages: bool,
   can_add_web_page_previews: bool}
+
+defFields BFile, {
+  (file_id, id): string,
+  (file_size, size): int,
+  (file_path, path): string}
+
+defFields PhotoSize, {
+  file_id: string,
+  width: int,
+  height: int,
+  file_size: int}
+
+defFields Video, {
+  file_id: string,
+  width: int,
+  height: int,
+  duration: int,
+  thumb: PhotoSize,
+  mime_type: string,
+  file_size: int}
+
+defFields Voice, {
+  file_id: string,
+  duration: int,
+  mime_type: string,
+  file_size: int}
+
+defFields Contact, {
+  phone_number: string,
+  first_name: string,
+  last_name: string,
+  user_id: int}
+
+defFields Location, {
+  longitude: float,
+  latitude: float}
+
+defFields SuccessfulPayment, {
+  currency: string,
+  total_amount: int,
+  invoice_payload: string,
+  shipping_option_id: string,
+  order_info: OrderInfo,
+  telegram_payment_charge_id: string,
+  provider_payment_charge_id: string}
+
+defFields OrderInfo, {
+  name: string,
+  phone_number: string,
+  email: string,
+  shipping_address: ShippingAddress,
+  telegram_payment_charge_id: string,
+  provider_payment_charge_id: string}
+
+defFields ShippingAddress, {
+  country_code: string,
+  stat: string,
+  city: string,
+  street_line1: string,
+  street_line2: string,
+  post_cod: string}
+
+defFields Invoice, {
+  title: string,
+  description: string,
+  start_parameter: string,
+  currency: string,
+  total_amount: int}
+
+defFields MessageEntity, {
+  (`type`, typ): Enum[MessageEntityKind],
+  offset: int,
+  length: int,
+  url: string,
+  user: User}
+
+defFields CallbackQuery, {
+  id: string,
+  (`from`, frm): User,
+  (message, msg): Message,
+  (inline_message_id, imsgid): string,
+  (chat_instance, chati): string,
+  data: string,
+  (game_short_name, gname): string}
+
+defFields ShippingQuery, {
+  id: string,
+  (`from`, frm): User,
+  invoice_payload: string,
+  shipping_address: ShippingAddress}
+
+defFields PreCheckoutQuery, {
+  id: string,
+  (`from`, frm): User,
+  currency: string,
+  total_amount: int,
+  invoice_payload: string,
+  shipping_option_id: string,
+  order_info: OrderInfo}
 
 
 template defResultType(ObjName, ResultType): untyped {.dirty.} =
@@ -219,7 +328,7 @@ proc sendMessage*(b: BaleBot,
   text: string,
   reply_markup: Option[ReplyKeyboardMarkup] = none ReplyKeyboardMarkup,
   reply_to_message_id: int = -1,
-  ): Future[Message] {.addProcName, async.} =
+  ): Future[Message] {.addProcName, queryFields, async.} =
 
   # if reply_markup.isSome:
   #   payload["reply_markup"] = %reply_markup.get
@@ -227,7 +336,8 @@ proc sendMessage*(b: BaleBot,
   # if reply_to_message_id != -1:
   #   payload["reply_to_message_id"] = %reply_to_message_id
 
-  return assertOkSelf BaleMessageResult postc toJson {chat_id, text}
+  return assertOkSelf BaleMessageResult postc toJson {chat_id, text,
+      ?reply_to_message_id}
 
 proc editMessageText*(b: BaleBot,
   chat_id, message_id: int,

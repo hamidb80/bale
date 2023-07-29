@@ -140,10 +140,18 @@ template apiUrl*: untyped {.dirty.} =
 
 # TODO think more about exceptions ...
 
+func lastUrlPart*(u: string): string = 
+  let i = u.rfind '/'
+  u[i..^1]
+
 template getc*(queryParams): untyped {.dirty.} =
   let c = newAsyncHttpClient()
   defer: c.close()
-  let res = await c.request(apiUrl ? queryParams, HttpGet)
+  let
+    url = apiUrl ? queryParams 
+    res = await c.request(url, HttpGet)
+  when defined bale_debug:
+    echo "> GET ", lastUrlPart $url
   parseJson await res.body
 
 template postc*(content: typed): untyped {.dirty.} =
@@ -155,7 +163,9 @@ template postc*(content: typed): untyped {.dirty.} =
     else:
       await c.request(apiUrl, HttpPost, body = $content)
 
-  echo $content
+  when defined bale_debug:
+    echo "> POST ", lastUrlPart $apiUrl
+    echo $content
   parseJson await res.body
 
 
