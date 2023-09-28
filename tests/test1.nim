@@ -31,7 +31,7 @@ for u in updates:
         one_time_keyboard: true,
       ), reply_to_message_id = ph.id)
       # e = waitFor bot.editMessageText(chid, m.id, "wow edited")
-      c = waitFor bot.sendContact(chid, "09140026206", "Iran Nim")
+      c = waitFor bot.sendContact(chid, "09557726286", "Iran Nim")
       k = waitFor bot.sendMessage(chid, "wow",
         reply_markup = some ReplyKeyboardMarkup(
         inline_keyboard: some @[@[
