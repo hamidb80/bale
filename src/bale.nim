@@ -299,7 +299,7 @@ defResultType GetChatMemberResult, ChatMember
 
 # ------ init -----------------------------------
 
-proc baleApiRoot*(token: string): string =
+proc baleBotBaseApi*(token: string): string =
   "https://tapi.bale.ai/bot" & token & "/"
 
 # ------ utils -----------------------------------

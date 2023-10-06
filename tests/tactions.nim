@@ -5,7 +5,7 @@ randomize()
 
 const token = staticRead "../bot.token"
 let
-  api = baleApiRoot token
+  api = baleBotBaseApi token
   hc = newHttpClient()
   updates = hc.req api.getUpdates(offset = -2)
 
