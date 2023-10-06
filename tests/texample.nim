@@ -17,17 +17,17 @@ proc main =
     var skip = -1
 
     while true:
-        let updates = \hc.req api.getUpdates(offset = skip+1)
+        let updates = \hc.req api.getUpdates(offset = skip)
         echo (updates.len, skip)
 
         for u in updates:
-            skip = u.id
+            skip = u.id + 1
             if u.msg.isSome:
                 let
                     msg = u.msg.get
                     chid = msg.chat.id
 
-                discard hc.req api.sendMessage(chid, "heelo")
+                discard hc.req api.sendMessage(chid, msg.text.get)
 
 
 when isMainModule:
