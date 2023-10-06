@@ -2,23 +2,14 @@
 ## https://dev.bale.ai/api
 ## https://dev.bale.ai/faq
 
-import std/[asyncdispatch, httpclient, uri]
-import std/[json, options, strutils]
-import bale/private/utils
+import std/[httpclient]
+import std/[json, options, strutils, uri]
+import bale/private/[utils, request]
 
 # ------ types -----------------------------------
 
 type
-  UriQuery = tuple[key: string, value: string]
   Array[T] = seq[T]
-
-  BaleBot = object
-    apiRoot: Uri
-    lastUpdateId: int
-
-  BaleError = ref object of CatchableError
-    code: int
-    # msg: string (description) - inherits this field
 
   BaleResult* = distinct JsonNode
   BaleIntResult* = distinct BaleResult
@@ -291,7 +282,7 @@ defFields PreCheckoutQuery, {
 
 template defResultType(ObjName, ResultType): untyped {.dirty.} =
   defFields ObjName, {
-    (result, res): ResultType,
+    (result, resp, `\`): ResultType,
     error_code: Option[int],
     ok: bool,
     description: string}
@@ -308,88 +299,103 @@ defResultType GetChatMemberResult, ChatMember
 
 # ------ init -----------------------------------
 
-proc newBaleBot*(token: string): BaleBot =
-  BaleBot(
-    apiRoot: parseUri "https://tapi.bale.ai/bot" & token,
-    lastUpdateId: -1)
+proc baleApiRoot*(token: string): string =
+  "https://tapi.bale.ai/bot" & token & "/"
 
 # ------ utils -----------------------------------
 
-func initQuery: seq[UriQuery] = @[]
-const noQuery = initQuery()
+func `?`(u: string, q: openArray[(string, string)]): string =
+  u & '?' & encodeQuery q
 
-template newBaleError(ecode, desc): untyped =
-  let err = new BaleError
-  err.code = ecode
-  err.msg = desc
-  err
 
-template assertOkRaw(res): untyped =
-  if not res.ok:
-    raise newBaleError(res.error_code.get 0, res.description)
+template fn2(typ): untyped =
+  proc(body: string): typ =
+    typ parseJson body
 
-template assertOkTemp(resp): untyped =
-  let r = resp
-  assertOkRaw r
+template URL: untyped {.dirty.} =
+  apiRoot & procname
 
-template assertOkSelf(resp): untyped =
-  let r = resp
-  assertOkRaw r
-  r.result()
+
+template r(hm, tt, u, c): untyped =
+  let con =
+    when c is JsonNode: Content(kind: ckJson, j: c)
+    elif c is MultiPartData: Content(kind: ckMultiPart, m: c)
+    elif c is void: Content(kind: ckNone)
+    else: error "invalid type"
+
+  RequestInfo[tt](
+    httpMethod: hm,
+    url: u,
+    content: con,
+    responseParser: fn2 tt)
+
 
 # ------ messages -----------------------------------
 
-proc sendMessage*(b: BaleBot,
+proc sendMessage*(
+  apiRoot: string,
   chat_id: int,
   text: string,
   reply_markup: Option[ReplyKeyboardMarkup] = none ReplyKeyboardMarkup,
   reply_to_message_id: int = -1,
-  ): Future[Message] {.addProcName, queryFields, async.} =
+  ): auto {.addProcName, defParamDefaults.} =
 
-  return assertOkSelf BaleMessageResult postc toJson {chat_id, text,
-      ?reply_markup, ?reply_to_message_id}
+  r(HttpPost, BaleMessageResult, URL,
+    toJson {chat_id, text, ?reply_markup, ?reply_to_message_id})
 
-proc editMessageText*(b: BaleBot,
-  chat_id, message_id: int,
+proc editMessageText*(
+  apiRoot: string,
+  chat_id,
+  message_id: int,
   text: string,
   reply_markup: Option[ReplyKeyboardMarkup] = none ReplyKeyboardMarkup,
-  ): Future[Message] {.addProcName, queryFields, async.} =
-  return assertOkSelf BaleMessageResult postc toJson {chat_id, message_id, text,
-    ?reply_markup}
+  ): auto {.addProcName, defParamDefaults.} =
 
-proc deleteMessage*(b: BaleBot, chat_id, message_id: int) {.addProcName, async.} =
-  assertOkTemp BaleBoolResult getc toQuery {chat_id, message_id}
+  r(HttpPost, BaleMessageResult, URL,
+    toJson {chat_id, message_id, text, ?reply_markup})
 
-# ------ updates -----------------------------------
+proc deleteMessage*(
+  apiRoot: string,
+  chat_id, message_id: int
+  ): auto {.addProcName.} =
 
-proc setWebhook*(b: BaleBot, url: string) {.addProcName, async.} =
-  assertOkTemp BaleBoolResult postc url
+  r(HttpGet, BaleBoolResult, URL ? (toQuery {chat_id, message_id}), void)
 
-proc deleteWebhook*(b: BaleBot) {.addProcName, async.} =
-  assertOkTemp BaleBoolResult getc noQuery
+# # ------ updates -----------------------------------
 
-proc getUpdates*(b: BaleBot, offset, limit: int = -1):
-  Future[seq[Update]] {.addProcName, queryFields, async.} =
-  return assertOkSelf GetUpdatesResult getc toQuery {?offset, ?limit}
+proc setWebhook*(apiRoot, url: string): auto {.addProcName.} =
+  r(HttpPost, BaleBoolResult, URL, newMultipartData {"url": url})
 
-# ------ users -----------------------------------
+proc deleteWebhook*(apiRoot: string): auto {.addProcName.} =
+  r(HttpGet, BaleBoolResult, URL, void)
 
-proc getMe*(b: BaleBot): Future[User] {.addProcName, async.} =
-  return assertOkSelf GetUserResult getc noQuery
+proc getUpdates*(
+  apiRoot: string,
+  offset, limit: int = -1
+  ): auto {.addProcName, defParamDefaults.} =
+  r(HttpGet, GetUpdatesResult, URL ? toQuery {?offset, ?limit}, void)
 
-# ------ attachments -----------------------------------
+# # ------ users -----------------------------------
 
-proc sendPhoto*(b: BaleBot,
+proc getMe*(apiRoot: string): auto {.addProcName.} =
+  r(HttpGet, GetUserResult, URL, void)
+
+# # ------ attachments -----------------------------------
+
+proc sendPhoto*(
+  apiRoot: string,
   chat_id: int,
   caption: string,
   file: string,
   is_binary: bool,
   reply_to_message_id: int = -1
-  ): Future[Message] {.addProcName, queryFields, async.} =
-  return assertOkSelf BaleMessageResult postc multipartFile({chat_id, caption,
-      ?reply_to_message_id}, "photo", file, is_binary)
+  ): auto {.addProcName, defParamDefaults.} =
 
-proc sendAudio*(b: BaleBot,
+  r(HttpPost, BaleMessageResult, URL, multipartFile({chat_id, caption,
+      ?reply_to_message_id}, "photo", file, is_binary))
+
+proc sendAudio*(
+  apiRoot: string,
   chat_id: int,
   caption: string,
   file: string,
@@ -397,21 +403,25 @@ proc sendAudio*(b: BaleBot,
   duration: int = -1,
   title: string = "",
   reply_to_message_id: int = -1
-  ): Future[Message] {.addProcName, queryFields, async.} =
-  return assertOkSelf BaleMessageResult postc multipartFile({chat_id, caption,
-    ?duration, ?title, ?reply_to_message_id}, "audio", file, is_binary)
+  ): auto {.addProcName, defParamDefaults.} =
 
-proc sendDocument*(b: BaleBot,
+  r(HttpPost, BaleMessageResult, URL, multipartFile({chat_id, caption,
+    ?duration, ?title, ?reply_to_message_id}, "audio", file, is_binary))
+
+proc sendDocument*(
+  apiRoot: string,
   chat_id: int,
   caption: string,
   file: string,
   is_binary: bool,
   reply_to_message_id: int = -1
-  ): Future[Message] {.addProcName, queryFields, async.} =
-  return assertOkSelf BaleMessageResult postc multipartFile({
-    chat_id, caption, ?reply_to_message_id}, "document", file, is_binary)
+  ): auto {.addProcName, defParamDefaults.} =
 
-proc sendVideo*(b: BaleBot,
+  r(HttpPost, BaleMessageResult, URL, multipartFile({
+    chat_id, caption, ?reply_to_message_id}, "document", file, is_binary))
+
+proc sendVideo*(
+  apiRoot: string,
   chat_id: int,
   caption: string,
   file: string,
@@ -420,65 +430,90 @@ proc sendVideo*(b: BaleBot,
   width: int = -1,
   height: int = -1,
   reply_to_message_id: int = -1
-  ): Future[Message] {.addProcName, queryFields, async.} =
-  return assertOkSelf BaleMessageResult postc multipartFile({chat_id, caption,
-    ?duration, ?width, ?height, ?reply_to_message_id}, "video", file, is_binary)
+  ): auto {.addProcName, defParamDefaults.} =
 
-proc sendVoice*(b: BaleBot,
+
+  r(HttpPost, BaleMessageResult, URL, multipartFile({chat_id, caption,
+    ?duration, ?width, ?height, ?reply_to_message_id}, "video", file, is_binary))
+
+proc sendVoice*(
+  apiRoot: string,
   chat_id: int,
   caption: string,
   file: string,
   is_binary: bool,
   duration: int = -1,
   reply_to_message_id: int = -1
-  ): Future[Message] {.addProcName, queryFields, async.} =
-  return assertOkSelf BaleMessageResult postc multipartFile({chat_id, caption,
-    ?duration, ?reply_to_message_id}, "voice", file, is_binary)
+  ): auto {.addProcName, defParamDefaults.} =
 
-proc sendLocation*(b: BaleBot,
+  r(HttpPost, BaleMessageResult, URL, multipartFile({chat_id, caption,
+    ?duration, ?reply_to_message_id}, "voice", file, is_binary))
+
+proc sendLocation*(
+  apiRoot: string,
   chat_id: int,
   latitude, longitude: float,
   caption: string = "",
   reply_to_message_id: int = -1
-  ): Future[Message] {.addProcName, queryFields, async.} =
-  return assertOkSelf BaleMessageResult postc toJson {
-      chat_id, latitude, longitude, caption, ?reply_to_message_id}
+  ): auto {.addProcName, defParamDefaults.} =
 
-proc sendContact*(b: BaleBot,
+  r(HttpPost, BaleMessageResult, URL, toJson {
+      chat_id, latitude, longitude, ?caption, ?reply_to_message_id})
+
+proc sendContact*(
+  apiRoot: string,
   chat_id: int,
   phone_number: string,
   first_name: string,
   last_name: string = "",
   reply_to_message_id: int = -1
-  ): Future[Message] {.addProcName, queryFields, async.} =
-  return assertOkSelf BaleMessageResult postc toJson {
-    chat_id, phone_number, first_name, ?last_name, ?reply_to_message_id}
+  ): auto {.addProcName, defParamDefaults.} =
 
-proc getFile*(b: BaleBot, fileId: string):
-  Future[BFile] {.addProcName, async.} =
-  return assertOkSelf GetFileResult getc toQuery {file_id}
+  r(HttpPost, BaleMessageResult, URL, toJson {
+    chat_id, phone_number, first_name, ?last_name, ?reply_to_message_id})
 
-# ------ chat -----------------------------------
+proc getFile*(
+  apiRoot: string,
+  fileId: string
+  ): auto {.addProcName.} =
 
-proc getChat*(b: BaleBot, chat_id: int):
-  Future[Chat] {.addProcName, async.} =
-  return assertOkSelf GetChatResult getc toQuery {chat_id}
+  r(HttpGet, GetFileResult, URL ? toQuery {file_id}, void)
 
-proc getChatAdministrators*(b: BaleBot, chat_id: int):
-  Future[seq[ChatMember]] {.addProcName, async.} =
-  return assertOkSelf GetChatAdministratorsResult getc toQuery {chat_id}
+# # ------ chat -----------------------------------
 
-proc getChatMembersCount*(b: BaleBot, chat_id: int):
-  Future[int] {.addProcName, async.} =
-  return assertOkSelf BaleIntResult getc toQuery {chat_id}
+proc getChat*(
+  apiRoot: string,
+  chat_id: int
+  ): auto {.addProcName.} =
 
-proc getChatMember*(b: BaleBot, chat_id, user_id: int):
-  Future[ChatMember] {.addProcName, async.} =
-  return assertOkSelf GetChatMemberResult getc toQuery {chat_id, user_id}
+  r(HttpGet, GetChatResult, URL ? toQuery {chat_id}, void)
+
+proc getChatAdministrators*(
+  apiRoot: string,
+  chat_id: int
+  ): auto {.addProcName.} =
+
+  r(HttpGet, GetChatAdministratorsResult, URL ? toQuery {chat_id}, void)
+
+proc getChatMembersCount*(
+  apiRoot: string,
+  chat_id: int
+  ): auto {.addProcName.} =
+
+  r(HttpGet, BaleIntResult, URL ? toQuery {chat_id}, void)
+
+proc getChatMember*(
+  apiRoot: string,
+  chat_id: int,
+  user_id: int
+  ): auto {.addProcName.} =
+
+  r(HttpGet, GetChatMemberResult, URL ? toQuery {chat_id}, void)
 
 # ------ payments -----------------------------------
 
-# proc sendInvoice*(b: BaleBot,
+# proc sendInvoice*(
+  # apiRoot: string,
 #   chat_id: int,
 #   title, description, provider_token, start_parameter, currency: string,
 #   prices: seq[],
@@ -495,6 +530,6 @@ proc getChatMember*(b: BaleBot, chat_id, user_id: int):
 #   disable_notification: bool,
 #   reply_markup: ReplyKeyboardMarkup,
 #   reply_to_message_id: int = -1
-# ): Future[Message] {.addProcName, queryFields, async.} =
-#   return assertOkSelf BaleMessageResult postc newMultipartData toQuery {
+# ): auto {.addProcName, defParamDefaults.} =
+#   BaleMessageResult HttpPost newMultipartData toQuery {
 #     chat_id, phone_number, first_name, ?last_name, ?reply_to_message_id}

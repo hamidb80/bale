@@ -93,7 +93,7 @@ macro defFields*(jsonType, bodyFields): untyped =
 
   # debugEcho repr result
 
-macro queryFields*(procDef): untyped =
+macro defParamDefaults*(procDef): untyped =
   var
     body = procDef.body
     ps = procDef.params
@@ -134,40 +134,9 @@ macro addProcName*(procDef): untyped =
 template apiUrl*: untyped {.dirty.} =
   b.apiRoot / procname
 
-# template checkHttpError(resp): untyped =
-#   if resp.code.is4xx or resp.code.is5xx:
-#     raise newException(HttpRequestError, resp.status)
-
-# TODO think more about exceptions ...
-
 func lastUrlPart*(u: string): string = 
   let i = u.rfind '/'
   u[i..^1]
-
-template getc*(queryParams): untyped {.dirty.} =
-  let c = newAsyncHttpClient()
-  defer: c.close()
-  let
-    url = apiUrl ? queryParams 
-    res = await c.request(url, HttpGet)
-  when defined bale_debug:
-    echo "> GET ", lastUrlPart $url
-  parseJson await res.body
-
-template postc*(content: typed): untyped {.dirty.} =
-  let c = newAsyncHttpClient()
-  defer: c.close()
-  let res =         
-    when content is MultipartData:
-      await c.request(apiUrl, HttpPost, multipart = content)
-    else:
-      await c.request(apiUrl, HttpPost, body = $content)
-
-  when defined bale_debug:
-    echo "> POST ", lastUrlPart $apiUrl
-    echo $content
-  parseJson await res.body
-
 
 macro toQuery*(n): untyped =
   expectKind n, nnkCurly
