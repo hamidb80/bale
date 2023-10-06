@@ -113,7 +113,7 @@ defFields User, {
   id: int,
   username: string,
   first_name: string,
-  last_name: string,
+  last_name: Option[string],
   language_code: Option[string],
   is_bot: bool}
 
