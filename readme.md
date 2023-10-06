@@ -8,7 +8,7 @@
 + ***easy to write***: There are some alises for fields like `message` as `msg` or `id` instead of `update_id` field for `Update` object!
 
 ## How to Use
-See `tests/test1.nim` at the moment
+See `tests/` at the moment
 
 ## Docs
-Docs? Really? Just take a look at `src/bale.nim`! It's just one man!
+Docs? Really? Just take a look at `src/bale.nim`! It's just one file man!
